@@ -22,8 +22,7 @@ import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.RtpParticipant;
 import com.biasedbit.efflux.participant.SingleParticipantDatabase;
-import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
-import org.jboss.netty.util.HashedWheelTimer;
+import io.netty.util.HashedWheelTimer;
 
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -34,13 +33,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Implementation that only supports two participants, a local and the remote.
- * <p/>
+ * <p>
  * This session is ideal for calls with only two participants in NAT scenarions, where often the IP and ports negociated
  * in the SDP aren't the real ones (due to NAT restrictions and clients not supporting ICE).
- * <p/>
+ * <p>
  * If data is received from a source other than the expected one, this session will automatically update the destination
  * IP and newly sent packets will be addressed to that new IP rather than the old one.
- * <p/>
+ * <p>
  * If more than one source is used to send data for this session it will often get "confused" and keep redirecting
  * packets to the last source from which it received.
  * <p>
@@ -69,30 +68,18 @@ public class SingleParticipantSession extends AbstractRtpSession {
     // constructors ---------------------------------------------------------------------------------------------------
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, null);
+        RtpParticipant remoteParticipant) {
+        this(id, payloadType, localParticipant, remoteParticipant, null);
     }
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, OrderedMemoryAwareThreadPoolExecutor executor) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, executor);
-    }
-
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, HashedWheelTimer timer) {
-        this(id, payloadType, localParticipant, remoteParticipant, timer, null);
-    }
-    
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-    								RtpParticipant remoteParticipant, HashedWheelTimer timer,
-    								OrderedMemoryAwareThreadPoolExecutor executor) {
-    	this(id, Collections.singleton(payloadType), localParticipant, remoteParticipant, timer, executor);
+        RtpParticipant remoteParticipant, HashedWheelTimer timer) {
+        this(id, Collections.singleton(payloadType), localParticipant, remoteParticipant, timer);
     }
 
     public SingleParticipantSession(String id, Collection<Integer> payloadTypes, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, HashedWheelTimer timer,
-                                    OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadTypes, localParticipant, timer, executor);
+        RtpParticipant remoteParticipant, HashedWheelTimer timer) {
+        super(id, payloadTypes, localParticipant, timer);
         if (!remoteParticipant.isReceiver()) {
             throw new IllegalArgumentException("Remote participant must be a receiver (data & control addresses set)");
         }
@@ -105,8 +92,7 @@ public class SingleParticipantSession extends AbstractRtpSession {
 
     // RtpSession -----------------------------------------------------------------------------------------------------
 
-    @Override
-    public boolean addReceiver(RtpParticipant remoteParticipant) {
+    @Override public boolean addReceiver(RtpParticipant remoteParticipant) {
         if (this.receiver.equals(remoteParticipant)) {
             return true;
         }
@@ -115,14 +101,12 @@ public class SingleParticipantSession extends AbstractRtpSession {
         return false;
     }
 
-    @Override
-    public boolean removeReceiver(RtpParticipant remoteParticipant) {
+    @Override public boolean removeReceiver(RtpParticipant remoteParticipant) {
         // No can do.
         return false;
     }
 
-    @Override
-    public RtpParticipant getRemoteParticipant(long ssrc) {
+    @Override public RtpParticipant getRemoteParticipant(long ssrc) {
         if (ssrc == this.receiver.getInfo().getSsrc()) {
             return this.receiver;
         }
@@ -130,8 +114,7 @@ public class SingleParticipantSession extends AbstractRtpSession {
         return null;
     }
 
-    @Override
-    public Map<Long, RtpParticipant> getRemoteParticipants() {
+    @Override public Map<Long, RtpParticipant> getRemoteParticipants() {
         Map<Long, RtpParticipant> map = new HashMap<Long, RtpParticipant>();
         map.put(this.receiver.getSsrc(), this.receiver);
         return map;
@@ -139,13 +122,11 @@ public class SingleParticipantSession extends AbstractRtpSession {
 
     // AbstractRtpSession ---------------------------------------------------------------------------------------------
 
-    @Override
-    protected ParticipantDatabase createDatabase() {
+    @Override protected ParticipantDatabase createDatabase() {
         return new SingleParticipantDatabase(this.id);
     }
 
-    @Override
-    protected void internalSendData(DataPacket packet) {
+    @Override protected void internalSendData(DataPacket packet) {
         try {
             // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
             // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
@@ -163,8 +144,7 @@ public class SingleParticipantSession extends AbstractRtpSession {
         }
     }
 
-    @Override
-    protected void internalSendControl(ControlPacket packet) {
+    @Override protected void internalSendControl(ControlPacket packet) {
         try {
             // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
             // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
@@ -178,33 +158,30 @@ public class SingleParticipantSession extends AbstractRtpSession {
             this.writeToControl(packet, destination);
             this.sentOrReceivedPackets.set(true);
         } catch (Exception e) {
-            LOG.error("Failed to send RTCP packet to {} in session with id {}.",
-                      this.receiver.getInfo(), this.id);
+            LOG.error("Failed to send RTCP packet to {} in session with id {}.", this.receiver.getInfo(), this.id);
         }
     }
 
-    @Override
-    protected void internalSendControl(CompoundControlPacket packet) {
+    @Override protected void internalSendControl(CompoundControlPacket packet) {
         try {
             this.writeToControl(packet, this.receiver.getControlDestination());
             this.sentOrReceivedPackets.set(true);
         } catch (Exception e) {
-            LOG.error("Failed to send compound RTCP packet to {} in session with id {}.",
-                      this.receiver.getInfo(), this.id);
+            LOG.error("Failed to send compound RTCP packet to {} in session with id {}.", this.receiver.getInfo(),
+                this.id);
         }
     }
 
     // DataPacketReceiver ---------------------------------------------------------------------------------------------
 
-    @Override
-    public void dataPacketReceived(SocketAddress origin, DataPacket packet) {
+    @Override public void dataPacketReceived(SocketAddress origin, DataPacket packet) {
         if (!this.receivedPackets.getAndSet(true)) {
             // If this is the first packet then setup the SSRC for this participant (we didn't know it yet).
             this.receiver.getInfo().setSsrc(packet.getSsrc());
             LOG.trace("First packet received from remote source, updated SSRC to {}.", packet.getSsrc());
         } else if (this.ignoreFromUnknownSsrc && (packet.getSsrc() != this.receiver.getInfo().getSsrc())) {
-            LOG.trace("Discarded packet from unexpected SSRC: {} (expected was {}).",
-                      packet.getSsrc(), this.receiver.getInfo().getSsrc());
+            LOG.trace("Discarded packet from unexpected SSRC: {} (expected was {}).", packet.getSsrc(),
+                this.receiver.getInfo().getSsrc());
             return;
         }
 

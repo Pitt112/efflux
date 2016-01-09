@@ -16,7 +16,8 @@
 
 package com.biasedbit.efflux.packet;
 
-import org.jboss.netty.buffer.ChannelBuffer;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
@@ -37,10 +38,10 @@ public abstract class ControlPacket {
 
     // public methods -------------------------------------------------------------------------------------------------
 
-    public static ControlPacket decode(ChannelBuffer buffer) {
+    public static ControlPacket decode(ByteBuf buffer) {
         if ((buffer.readableBytes() % 4) > 0) {
             throw new IllegalArgumentException("Invalid RTCP packet length: expecting multiple of 4 and got " +
-                                               buffer.readableBytes());
+                buffer.readableBytes());
         }
         byte b = buffer.readByte();
         RtpVersion version = RtpVersion.fromByte(b);
@@ -60,7 +61,7 @@ public abstract class ControlPacket {
 
         // No need to pass version downwards, only V2 is supported so subclasses can safely assume V2.
         // I know it's ugly when the superclass knows about the subclasses but since this method is static (and NEEDS
-        // to be) the alternative was having this method in a external class. Pointless. 
+        // to be) the alternative was having this method in a external class. Pointless.
         switch (type) {
             case SENDER_REPORT:
                 return SenderReportPacket.decode(buffer, hasPadding, innerBlocks, length);
@@ -77,9 +78,9 @@ public abstract class ControlPacket {
         }
     }
 
-    public abstract ChannelBuffer encode(int currentCompoundLength, int fixedBlockSize);
+    public abstract ByteBuf encode(int currentCompoundLength, int fixedBlockSize);
 
-    public abstract ChannelBuffer encode();
+    public abstract ByteBuf encode();
 
     // getters & setters ----------------------------------------------------------------------------------------------
 
